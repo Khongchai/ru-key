@@ -11,6 +11,17 @@ A minimal dark-themed webapp for learning to touch type Russian (ЙЦУКЕН la
 - **1000 default words** with English meanings, roughly frequency-ordered (sampling is biased toward common words) and covering all 33 Cyrillic letters.
 - **Custom word list** — the ☰ menu accepts a comma-separated list (`слово` or `слово=meaning`) that overrides the default, persisted in localStorage.
 - Live WPM / accuracy / word count.
+- **Pronunciation** — every default word ships with pre-generated neural TTS audio
+  (Microsoft Edge `ru-RU-DmitryNeural`, see `generate-audio.js`); custom-list words fall back
+  to the browser's Web Speech API. Toggle with 🔊, replay with Tab.
+- **Repeat mode** (🔁) — stay on the current word and drill it until toggled off.
+
+## Regenerating audio
+
+```bash
+npm install
+node generate-audio.js   # writes audio/<index>.mp3 for each default word, skips existing
+```
 
 ## Word list validation
 

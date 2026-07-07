@@ -103,6 +103,75 @@ function pickWord() {
   return deck.shift();
 }
 
+// ---------- audio ----------
+// Default-list words have pre-generated neural TTS at audio/<index>.mp3
+// (see generate-audio.js). Anything else falls back to the Web Speech API.
+const AUDIO_INDEX = new Map(parseWordList(DEFAULT_WORDS).map((e, i) => [e.w, i]));
+const audioCache = new Map();
+let soundOn = localStorage.getItem('rukey-sound') !== 'off';
+let repeatOn = false;
+
+function speak(word) {
+  if (!soundOn || !word) return;
+  const idx = AUDIO_INDEX.get(word);
+  if (idx !== undefined) {
+    let a = audioCache.get(idx);
+    if (!a) {
+      a = new Audio('audio/' + idx + '.mp3');
+      if (audioCache.size > 200) audioCache.clear();
+      audioCache.set(idx, a);
+    }
+    a.currentTime = 0;
+    a.play().catch(() => speakFallback(word));
+  } else {
+    speakFallback(word);
+  }
+}
+
+function speakFallback(word) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = 'ru-RU';
+  const voice = speechSynthesis.getVoices().find(v => v.lang.startsWith('ru'));
+  if (voice) u.voice = voice;
+  speechSynthesis.speak(u);
+}
+
+// ---------- keyboard tick sound ----------
+// adapted from lochie/web-haptics debug-mode click:
+// a 4ms noise burst with exponential decay through a jittered bandpass filter
+let tickCtx = null, tickFilter = null, tickGain = null, tickBuffer = null;
+
+function playTick(intensity = 0.7) {
+  if (typeof AudioContext === 'undefined') return;
+  if (!tickCtx) {
+    tickCtx = new AudioContext();
+    tickFilter = tickCtx.createBiquadFilter();
+    tickFilter.type = 'bandpass';
+    tickFilter.frequency.value = 4000;
+    tickFilter.Q.value = 8;
+    tickGain = tickCtx.createGain();
+    tickFilter.connect(tickGain);
+    tickGain.connect(tickCtx.destination);
+    tickBuffer = tickCtx.createBuffer(1, tickCtx.sampleRate * 0.004, tickCtx.sampleRate);
+  }
+  if (tickCtx.state === 'suspended') tickCtx.resume();
+
+  const data = tickBuffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 25);
+
+  tickGain.gain.value = 0.5 * intensity;
+  const baseFreq = 2000 + intensity * 2000;
+  tickFilter.frequency.value = baseFreq * (1 + (Math.random() - 0.5) * 0.3);
+
+  const source = tickCtx.createBufferSource();
+  source.buffer = tickBuffer;
+  source.connect(tickFilter);
+  source.onended = () => source.disconnect();
+  source.start();
+}
+
 // ---------- DOM ----------
 const track = document.getElementById('track');
 const viewport = document.getElementById('viewport');
@@ -177,6 +246,7 @@ function goToWord(i) {
   ensureBuffer();
   renderCurrent();
   centerCurrent();
+  speak(queue[currentIdx].w);
 }
 
 function renderCurrent() {
@@ -242,6 +312,7 @@ function advanceWord(skipped) {
   renderCurrent();
   centerCurrent();
   updateStats();
+  speak(queue[currentIdx].w);
 }
 
 function updateStats() {
@@ -261,19 +332,30 @@ document.addEventListener('keydown', (e) => {
   if (document.getElementById('overlay').classList.contains('open')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-  // key press animation on the on-screen keyboard
+  // key press animation + tick sound on the on-screen keyboard
   const keyEl = document.querySelector(`.key[data-code="${e.code}"]`);
-  if (keyEl) {
+  if (keyEl && !e.repeat) {
     keyEl.classList.add('pressed');
     setTimeout(() => keyEl.classList.remove('pressed'), 90);
+    playTick();
   }
 
   if (e.key === 'Escape') { advanceWord(true); return; }
 
   if (e.key === 'Backspace') {
-    if (typedPos > 0) typedPos--;
-    errorState = false;
-    renderCurrent();
+    if (typedPos > 0) {
+      typedPos--;
+      errorState = false;
+      renderCurrent();
+    } else if (currentIdx > 0) {
+      goToWord(currentIdx - 1); // at the start of a word, back up to the previous one
+    }
+    e.preventDefault();
+    return;
+  }
+
+  if (e.key === 'Tab') {
+    speak(queue[currentIdx] && queue[currentIdx].w);
     e.preventDefault();
     return;
   }
@@ -300,6 +382,16 @@ document.addEventListener('keydown', (e) => {
     typedPos++;
     errorState = false;
     if (typedPos >= cur.w.length) {
+      if (repeatOn) {
+        // repeat mode: stay on this word, start over
+        doneWords++;
+        countEl.textContent = doneWords;
+        typedPos = 0;
+        renderCurrent();
+        updateStats();
+        speak(cur.w);
+        return;
+      }
       renderCurrent();
       advanceWord(false);
       return;
@@ -313,6 +405,23 @@ document.addEventListener('keydown', (e) => {
   }
   renderCurrent();
   updateStats();
+});
+
+// ---------- sound / repeat toggles ----------
+const soundBtn = document.getElementById('soundBtn');
+const repeatBtn = document.getElementById('repeatBtn');
+soundBtn.classList.toggle('on', soundOn);
+
+soundBtn.addEventListener('click', () => {
+  soundOn = !soundOn;
+  soundBtn.classList.toggle('on', soundOn);
+  localStorage.setItem('rukey-sound', soundOn ? 'on' : 'off');
+  if (soundOn && queue[currentIdx]) speak(queue[currentIdx].w);
+});
+
+repeatBtn.addEventListener('click', () => {
+  repeatOn = !repeatOn;
+  repeatBtn.classList.toggle('on', repeatOn);
 });
 
 // ---------- settings panel ----------

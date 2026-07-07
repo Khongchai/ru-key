@@ -1,0 +1,15 @@
+{
+  "name": "ru-key",
+  "version": "1.0.0",
+  "description": "A minimal dark-themed webapp for learning to touch type Russian (ЙЦУКЕН layout).",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "msedge-tts": "^2.0.6"
+  }
+}

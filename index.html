@@ -38,7 +38,8 @@
   header h1 span { color: var(--dim); font-weight: 400; }
   .stats { display: flex; gap: 22px; font-size: 13px; color: var(--dim); }
   .stats b { color: var(--text); font-weight: 600; }
-  #menuBtn {
+  .header-btns { display: flex; gap: 8px; }
+  .header-btns button {
     background: var(--key);
     border: 1px solid var(--key-border);
     color: var(--text);
@@ -48,7 +49,13 @@
     font-size: 13px;
     cursor: pointer;
   }
-  #menuBtn:hover { border-color: var(--accent); }
+  .header-btns button:hover { border-color: var(--accent); }
+  .header-btns button.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0b0e13;
+    font-weight: 600;
+  }
 
   /* ---- keyboard ---- */
   #kbArea {
@@ -246,13 +253,17 @@
     <div>accuracy <b id="acc">100%</b></div>
     <div>words <b id="count">0</b></div>
   </div>
-  <button id="menuBtn">☰ word list</button>
+  <div class="header-btns">
+    <button id="repeatBtn" title="stay on the current word until you turn this off">🔁 repeat</button>
+    <button id="soundBtn" title="pronounce each word (neural TTS)">🔊 sound</button>
+    <button id="menuBtn">☰ word list</button>
+  </div>
 </header>
 
 <div id="arena">
   <div id="viewport"><div id="track"></div></div>
   <div id="meaning"></div>
-  <div id="hint">type the highlighted word — no need to switch your OS keyboard layout, physical keys are mapped to ЙЦУКЕН · backspace to correct · esc to skip a word</div>
+  <div id="hint">type the highlighted word — no need to switch your OS keyboard layout, physical keys are mapped to ЙЦУКЕН · backspace to correct (or go back a word) · esc to skip · tab to replay pronunciation</div>
 </div>
 
 <div id="kbArea">

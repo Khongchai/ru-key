@@ -407,6 +407,21 @@ document.addEventListener('keydown', (e) => {
   updateStats();
 });
 
+// ---------- keyboard helper toggle ----------
+const kbBtn = document.getElementById('kbBtn');
+const kbArea = document.getElementById('kbArea');
+let kbVisible = localStorage.getItem('rukey-kb') !== 'off';
+kbArea.classList.toggle('hidden', !kbVisible);
+kbBtn.classList.toggle('on', kbVisible);
+
+kbBtn.addEventListener('click', () => {
+  kbVisible = !kbVisible;
+  kbArea.classList.toggle('hidden', !kbVisible);
+  kbBtn.classList.toggle('on', kbVisible);
+  localStorage.setItem('rukey-kb', kbVisible ? 'on' : 'off');
+  centerCurrent(); // arena height changed, re-center the word line
+});
+
 // ---------- sound / repeat toggles ----------
 const soundBtn = document.getElementById('soundBtn');
 const repeatBtn = document.getElementById('repeatBtn');

@@ -58,6 +58,7 @@
   }
 
   /* ---- keyboard ---- */
+  #kbArea.hidden { display: none; }
   #kbArea {
     display: flex;
     align-items: flex-end;
@@ -254,6 +255,7 @@
     <div>words <b id="count">0</b></div>
   </div>
   <div class="header-btns">
+    <button id="kbBtn" title="show or hide the keyboard and hands helper">⌨ keyboard</button>
     <button id="repeatBtn" title="stay on the current word until you turn this off">🔁 repeat</button>
     <button id="soundBtn" title="pronounce each word (neural TTS)">🔊 sound</button>
     <button id="menuBtn">☰ word list</button>

@@ -28,6 +28,37 @@ for (const row of KEY_ROWS) for (const [ch, code] of row) CODE_TO_CHAR[code] = c
 // hyphen appears in a few words (что-то)
 CODE_TO_CHAR['Minus'] = '-';
 
+// ---------- fingers ----------
+// standard ЙЦУКЕН touch-typing finger zones
+const FINGER_ZONES = {
+  'l-pinky':  ['ё', 'й', 'ф', 'я'],
+  'l-ring':   ['ц', 'ы', 'ч'],
+  'l-middle': ['у', 'в', 'с'],
+  'l-index':  ['к', 'е', 'а', 'п', 'м', 'и'],
+  'r-index':  ['н', 'г', 'р', 'о', 'т', 'ь'],
+  'r-middle': ['ш', 'л', 'б'],
+  'r-ring':   ['щ', 'д', 'ю'],
+  'r-pinky':  ['з', 'х', 'ъ', 'ж', 'э', '-'],
+};
+const CHAR_TO_FINGERS = { ' ': ['l-thumb', 'r-thumb'] };
+for (const [finger, chars] of Object.entries(FINGER_ZONES))
+  for (const ch of chars) CHAR_TO_FINGERS[ch] = [finger];
+
+function handSVG(side) {
+  const p = side === 'l' ? 'l' : 'r';
+  // drawn as a left hand; the right hand is the same shape mirrored
+  const mirror = side === 'r' ? ' style="transform: scaleX(-1)"' : '';
+  return `<svg viewBox="0 0 132 152" xmlns="http://www.w3.org/2000/svg"${mirror}>
+    <rect class="palm" x="6" y="86" width="94" height="58" rx="20"/>
+    <rect class="finger" data-finger="${p}-pinky"  x="6"  y="46" width="20" height="52" rx="10"/>
+    <rect class="finger" data-finger="${p}-ring"   x="30" y="22" width="20" height="76" rx="10"/>
+    <rect class="finger" data-finger="${p}-middle" x="54" y="12" width="20" height="86" rx="10"/>
+    <rect class="finger" data-finger="${p}-index"  x="78" y="24" width="20" height="74" rx="10"/>
+    <rect class="finger" data-finger="${p}-thumb"  x="102" y="86" width="19" height="50" rx="9.5"
+          transform="rotate(-32 108 92)"/>
+  </svg>`;
+}
+
 // ---------- word list ----------
 const LS_KEY = 'rukey-custom-words';
 
@@ -96,6 +127,12 @@ for (const row of KEY_ROWS) {
   }
   keyboardEl.appendChild(rowEl);
 }
+// build hands
+document.getElementById('handL').innerHTML = handSVG('l');
+document.getElementById('handR').innerHTML = handSVG('r');
+const fingerEls = {};
+document.querySelectorAll('.finger').forEach(f => { fingerEls[f.dataset.finger] = f; });
+
 // space bar row
 {
   const rowEl = document.createElement('div');
@@ -160,10 +197,14 @@ function renderCurrent() {
 
 function highlightNextKey() {
   document.querySelectorAll('.key.next').forEach(k => k.classList.remove('next'));
+  document.querySelectorAll('.finger.active').forEach(f => f.classList.remove('active'));
   const cur = queue[currentIdx];
   if (!cur) return;
   const ch = cur.w[typedPos];
-  if (ch && charToKeyEl[ch]) charToKeyEl[ch].classList.add('next');
+  if (!ch) return;
+  if (charToKeyEl[ch]) charToKeyEl[ch].classList.add('next');
+  for (const finger of CHAR_TO_FINGERS[ch] || [])
+    if (fingerEls[finger]) fingerEls[finger].classList.add('active');
 }
 
 function centerCurrent() {

@@ -51,14 +51,41 @@
   #menuBtn:hover { border-color: var(--accent); }
 
   /* ---- keyboard ---- */
+  #kbArea {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 34px;
+    padding: 10px 0 6px;
+  }
   #keyboard {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 7px;
-    padding: 10px 0 4px;
     user-select: none;
   }
+
+  /* ---- hands ---- */
+  .hand { display: flex; align-items: flex-end; }
+  .hand svg { width: 118px; height: auto; }
+  .hand .palm {
+    fill: var(--key);
+    stroke: var(--key-border);
+    stroke-width: 1.5;
+  }
+  .hand .finger {
+    fill: var(--key);
+    stroke: var(--key-border);
+    stroke-width: 1.5;
+    transition: fill .08s, stroke .08s;
+  }
+  .hand .finger.active {
+    fill: var(--accent);
+    stroke: var(--accent);
+    filter: drop-shadow(0 0 8px rgba(78,161,255,.55));
+  }
+  @media (max-width: 1050px) { .hand { display: none; } }
   .krow { display: flex; gap: 7px; }
   .key {
     width: 52px; height: 48px;
@@ -228,7 +255,11 @@
   <div id="hint">type the highlighted word — no need to switch your OS keyboard layout, physical keys are mapped to ЙЦУКЕН · backspace to correct · esc to skip a word</div>
 </div>
 
-<div id="keyboard"></div>
+<div id="kbArea">
+  <div class="hand" id="handL"></div>
+  <div id="keyboard"></div>
+  <div class="hand" id="handR"></div>
+</div>
 
 <div id="overlay">
   <div id="panel">

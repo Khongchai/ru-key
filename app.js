@@ -57,11 +57,19 @@ function loadWords() {
   }
 }
 
-// biased sampling: the default list is ordered by frequency, so bias
-// toward the head while still occasionally reaching the tail.
+// weighted shuffle: a fresh random order every page load. For the default
+// list (frequency-ordered) earlier words get higher weight, so common words
+// tend to come up sooner — but every word appears once per deck cycle.
+let deck = [];
+function weightedShuffle(list) {
+  return list
+    .map((w, i) => ({ w, key: -Math.log(Math.random()) * (usingCustom ? 1 : i + 8) }))
+    .sort((a, b) => a.key - b.key)
+    .map(x => x.w);
+}
 function pickWord() {
-  const r = usingCustom ? Math.random() : Math.pow(Math.random(), 1.7);
-  return WORDS[Math.floor(r * WORDS.length)];
+  if (!deck.length) deck = weightedShuffle(WORDS);
+  return deck.shift();
 }
 
 // ---------- DOM ----------
@@ -115,8 +123,23 @@ function addWordToTrack(entry) {
   const el = document.createElement('div');
   el.className = 'word';
   el.textContent = entry.w;
+  el.addEventListener('click', () => goToWord(queue.findIndex(q => q.el === el)));
   track.appendChild(el);
   queue.push({ ...entry, el });
+}
+
+function goToWord(i) {
+  if (i < 0 || i >= queue.length || i === currentIdx) return;
+  const cur = queue[currentIdx];
+  cur.el.classList.remove('current', 'error');
+  cur.el.textContent = cur.w;
+  currentIdx = i;
+  queue[i].el.classList.remove('done');
+  typedPos = 0;
+  errorState = false;
+  ensureBuffer();
+  renderCurrent();
+  centerCurrent();
 }
 
 function renderCurrent() {
@@ -289,6 +312,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 // ---------- init ----------
 function restart() {
   loadWords();
+  deck = [];
   track.innerHTML = '';
   queue = [];
   currentIdx = 0;

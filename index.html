@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ru-key — Russian Touch Typing Trainer</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --key: #21252e;
+    --key-border: #2e3340;
+    --text: #d7dae0;
+    --dim: #6b7280;
+    --accent: #4ea1ff;
+    --good: #4ade80;
+    --bad: #f87171;
+    --current-bg: #1d2330;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 22px;
+  }
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: 1px; color: var(--accent); }
+  header h1 span { color: var(--dim); font-weight: 400; }
+  .stats { display: flex; gap: 22px; font-size: 13px; color: var(--dim); }
+  .stats b { color: var(--text); font-weight: 600; }
+  #menuBtn {
+    background: var(--key);
+    border: 1px solid var(--key-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #menuBtn:hover { border-color: var(--accent); }
+
+  /* ---- keyboard ---- */
+  #keyboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 0 4px;
+    user-select: none;
+  }
+  .krow { display: flex; gap: 7px; }
+  .key {
+    width: 52px; height: 48px;
+    background: var(--key);
+    border: 1px solid var(--key-border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    position: relative;
+    transition: background .08s, border-color .08s, transform .05s;
+  }
+  .key small {
+    position: absolute;
+    top: 3px; right: 6px;
+    font-size: 9px;
+    color: var(--dim);
+  }
+  .key.wide { width: 90px; font-size: 11px; color: var(--dim); }
+  .key.space { width: 340px; }
+  .key.next {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0b0e13;
+    box-shadow: 0 0 18px rgba(78,161,255,.45);
+  }
+  .key.next small { color: #0b0e13; }
+  .key.pressed { transform: scale(.92); }
+  .key.home::after {
+    content: "";
+    position: absolute;
+    bottom: 6px;
+    width: 14px; height: 2px;
+    border-radius: 2px;
+    background: var(--dim);
+  }
+
+  /* ---- word roll ---- */
+  #arena {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 0;
+    position: relative;
+  }
+  #viewport {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  }
+  #track {
+    display: flex;
+    gap: 34px;
+    width: max-content;
+    padding: 18px 0;
+    transition: transform .28s cubic-bezier(.3,.9,.3,1);
+    will-change: transform;
+  }
+  .word {
+    font-size: 40px;
+    white-space: nowrap;
+    color: var(--dim);
+  }
+  .word.done { color: #3b4252; }
+  .word.current {
+    color: var(--text);
+    background: var(--current-bg);
+    padding: 2px 12px;
+    margin: -2px -12px;
+    border-radius: 10px;
+  }
+  .word.current .typed { color: var(--good); }
+  .word.current .cursor {
+    border-bottom: 3px solid var(--accent);
+  }
+  .word.error { color: var(--bad) !important; background: rgba(248,113,113,.12); animation: shake .18s; }
+  .word.error .typed { color: var(--bad); }
+  @keyframes shake {
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+  #meaning {
+    margin-top: 18px;
+    font-size: 17px;
+    color: var(--dim);
+    height: 22px;
+    text-align: center;
+  }
+  #hint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #3d4453;
+    text-align: center;
+  }
+
+  /* ---- settings panel ---- */
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  #overlay.open { display: flex; }
+  #panel {
+    background: var(--panel);
+    border: 1px solid var(--key-border);
+    border-radius: 14px;
+    width: min(680px, 92vw);
+    padding: 26px;
+  }
+  #panel h2 { font-size: 15px; margin-bottom: 6px; }
+  #panel p { font-size: 12px; color: var(--dim); margin-bottom: 14px; line-height: 1.5; }
+  #panel textarea {
+    width: 100%;
+    height: 220px;
+    background: var(--bg);
+    border: 1px solid var(--key-border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 12px;
+    resize: vertical;
+  }
+  #panel textarea:focus { outline: none; border-color: var(--accent); }
+  .panel-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+  .panel-actions button {
+    background: var(--key);
+    border: 1px solid var(--key-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .panel-actions button.primary { background: var(--accent); border-color: var(--accent); color: #0b0e13; font-weight: 600; }
+  .panel-actions button:hover { filter: brightness(1.15); }
+  #panelMsg { font-size: 12px; color: var(--good); margin-right: auto; align-self: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ru-key <span>· русская клавиатура</span></h1>
+  <div class="stats">
+    <div>wpm <b id="wpm">0</b></div>
+    <div>accuracy <b id="acc">100%</b></div>
+    <div>words <b id="count">0</b></div>
+  </div>
+  <button id="menuBtn">☰ word list</button>
+</header>
+
+<div id="arena">
+  <div id="viewport"><div id="track"></div></div>
+  <div id="meaning"></div>
+  <div id="hint">type the highlighted word — no need to switch your OS keyboard layout, physical keys are mapped to ЙЦУКЕН · backspace to correct · esc to skip a word</div>
+</div>
+
+<div id="keyboard"></div>
+
+<div id="overlay">
+  <div id="panel">
+    <h2>Custom word list</h2>
+    <p>Comma-separated. Each entry is either <b>слово</b> or <b>слово=meaning</b>.
+       Leave empty and save to restore the default 1000-word list.
+       Your list is stored locally in this browser.</p>
+    <textarea id="wordInput" spellcheck="false" placeholder="привет=hello, мир=world, спасибо=thank you"></textarea>
+    <div class="panel-actions">
+      <span id="panelMsg"></span>
+      <button id="resetBtn">reset to default</button>
+      <button id="cancelBtn">cancel</button>
+      <button id="saveBtn" class="primary">save</button>
+    </div>
+  </div>
+</div>
+
+<script src="words.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

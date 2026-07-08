@@ -151,13 +151,56 @@
     mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
   }
   #track {
+    position: relative;
     display: flex;
     gap: 34px;
     width: max-content;
-    padding: 18px 0;
+    padding: 26px 0 18px;
     transition: transform .28s cubic-bezier(.3,.9,.3,1);
     will-change: transform;
   }
+
+  /* ---- loop bar ---- */
+  #loopBar {
+    position: absolute;
+    top: 6px;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(234,179,8,.25);
+    border: 1px solid rgba(234,179,8,.4);
+    pointer-events: none;
+    transition: left .15s, width .15s;
+    z-index: 2;
+  }
+  #loopBar.pinned {
+    background: rgba(234,179,8,.8);
+    border-color: #eab308;
+    box-shadow: 0 0 12px rgba(234,179,8,.35);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  #loopBar .grip {
+    position: absolute;
+    top: -5px;
+    width: 16px;
+    height: 18px;
+    pointer-events: auto;
+    cursor: ew-resize;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #loopBar .grip::after {
+    content: "";
+    width: 7px;
+    height: 18px;
+    border-radius: 4px;
+    background: #eab308;
+    box-shadow: 0 0 8px rgba(234,179,8,.5);
+  }
+  #loopBar .grip.left { left: -10px; }
+  #loopBar .grip.right { right: -10px; }
   .word {
     font-size: 40px;
     white-space: nowrap;
@@ -256,7 +299,6 @@
   </div>
   <div class="header-btns">
     <button id="kbBtn" title="show or hide the keyboard and hands helper">⌨ keyboard</button>
-    <button id="repeatBtn" title="stay on the current word until you turn this off">🔁 repeat</button>
     <button id="soundBtn" title="pronounce each word (neural TTS)">🔊 sound</button>
     <button id="menuBtn">☰ word list</button>
   </div>
@@ -265,7 +307,7 @@
 <div id="arena">
   <div id="viewport"><div id="track"></div></div>
   <div id="meaning"></div>
-  <div id="hint">type the highlighted word — no need to switch your OS keyboard layout, physical keys are mapped to ЙЦУКЕН · backspace to correct (or go back a word) · esc to skip · tab to replay pronunciation</div>
+  <div id="hint">type the highlighted word — physical keys are mapped to ЙЦУКЕН, no OS layout switch needed · backspace corrects (at word start: goes back a word) · tab skips forward · enter replays pronunciation · drag the ends of the yellow bar to loop over a set of words, double-click it to clear</div>
 </div>
 
 <div id="kbArea">

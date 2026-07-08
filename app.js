@@ -109,7 +109,6 @@ function pickWord() {
 const AUDIO_INDEX = new Map(parseWordList(DEFAULT_WORDS).map((e, i) => [e.w, i]));
 const audioCache = new Map();
 let soundOn = localStorage.getItem('rukey-sound') !== 'off';
-let repeatOn = false;
 
 function speak(word) {
   if (!soundOn || !word) return;
@@ -225,6 +224,71 @@ let keystrokes = 0;
 let mistakes = 0;
 let startedAt = null;
 
+// ---------- loop bar ----------
+// yellow bar above the word line; drag either end to select a set of words
+// that repeats serially (wrapping at the end). null = follow current word, no looping.
+let loopRange = null; // {start, end} inclusive indices into queue
+const loopBar = document.createElement('div');
+loopBar.id = 'loopBar';
+loopBar.title = 'drag the ends to set a repeat range · double-click to clear';
+const gripL = document.createElement('div');
+gripL.className = 'grip left';
+const gripR = document.createElement('div');
+gripR.className = 'grip right';
+loopBar.append(gripL, gripR);
+
+function updateLoopBar() {
+  const s = queue[loopRange ? loopRange.start : currentIdx];
+  const e = queue[loopRange ? loopRange.end : currentIdx];
+  if (!s || !e) return;
+  loopBar.style.left = s.el.offsetLeft + 'px';
+  loopBar.style.width = (e.el.offsetLeft + e.el.offsetWidth - s.el.offsetLeft) + 'px';
+  loopBar.classList.toggle('pinned', !!loopRange);
+}
+
+function snapIndex(clientX) {
+  // track's bounding rect already includes its transform, so this yields layout-x
+  const x = clientX - track.getBoundingClientRect().left;
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < queue.length; i++) {
+    const el = queue[i].el;
+    const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - x);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+function gripDrag(side) {
+  return (e) => {
+    e.preventDefault();
+    if (!loopRange) loopRange = { start: currentIdx, end: currentIdx };
+    const grip = e.currentTarget;
+    grip.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      const idx = snapIndex(ev.clientX);
+      if (side === 'left') loopRange.start = Math.min(idx, loopRange.end);
+      else loopRange.end = Math.max(idx, loopRange.start);
+      updateLoopBar();
+    };
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      grip.removeEventListener('pointercancel', up);
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+    grip.addEventListener('pointercancel', up);
+    updateLoopBar();
+  };
+}
+gripL.addEventListener('pointerdown', gripDrag('left'));
+gripR.addEventListener('pointerdown', gripDrag('right'));
+
+loopBar.addEventListener('dblclick', () => {
+  loopRange = null;
+  updateLoopBar();
+});
+
 function addWordToTrack(entry) {
   const el = document.createElement('div');
   el.className = 'word';
@@ -246,6 +310,7 @@ function goToWord(i) {
   ensureBuffer();
   renderCurrent();
   centerCurrent();
+  updateLoopBar();
   speak(queue[currentIdx].w);
 }
 
@@ -288,11 +353,34 @@ function centerCurrent() {
 function ensureBuffer() {
   while (queue.length - currentIdx < 12) addWordToTrack(pickWord());
   // trim far-past words so the track doesn't grow forever
-  while (currentIdx > 30) {
+  while (currentIdx > 30 && (!loopRange || loopRange.start > 0)) {
     const old = queue.shift();
     old.el.remove();
     currentIdx--;
+    if (loopRange) { loopRange.start--; loopRange.end--; }
   }
+}
+
+// completion while a loop range is pinned: serial through the range, wrap at the end
+function completeLoopWord() {
+  const cur = queue[currentIdx];
+  doneWords++;
+  countEl.textContent = doneWords;
+  cur.el.classList.remove('current', 'error');
+  cur.el.textContent = cur.w;
+  cur.el.classList.add('done');
+  const next = currentIdx >= loopRange.end ? loopRange.start : currentIdx + 1;
+  if (next === loopRange.start)
+    for (let i = loopRange.start; i <= loopRange.end; i++) queue[i].el.classList.remove('done');
+  currentIdx = next;
+  queue[currentIdx].el.classList.remove('done');
+  typedPos = 0;
+  errorState = false;
+  renderCurrent();
+  centerCurrent();
+  updateStats();
+  updateLoopBar();
+  speak(queue[currentIdx].w);
 }
 
 function advanceWord(skipped) {
@@ -312,6 +400,7 @@ function advanceWord(skipped) {
   renderCurrent();
   centerCurrent();
   updateStats();
+  updateLoopBar();
   speak(queue[currentIdx].w);
 }
 
@@ -355,6 +444,12 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (e.key === 'Tab') {
+    advanceWord(true); // forward, mirroring backspace-at-start going back
+    e.preventDefault();
+    return;
+  }
+
+  if (e.key === 'Enter') {
     speak(queue[currentIdx] && queue[currentIdx].w);
     e.preventDefault();
     return;
@@ -382,16 +477,7 @@ document.addEventListener('keydown', (e) => {
     typedPos++;
     errorState = false;
     if (typedPos >= cur.w.length) {
-      if (repeatOn) {
-        // repeat mode: stay on this word, start over
-        doneWords++;
-        countEl.textContent = doneWords;
-        typedPos = 0;
-        renderCurrent();
-        updateStats();
-        speak(cur.w);
-        return;
-      }
+      if (loopRange) { completeLoopWord(); return; }
       renderCurrent();
       advanceWord(false);
       return;
@@ -422,9 +508,8 @@ kbBtn.addEventListener('click', () => {
   centerCurrent(); // arena height changed, re-center the word line
 });
 
-// ---------- sound / repeat toggles ----------
+// ---------- sound toggle ----------
 const soundBtn = document.getElementById('soundBtn');
-const repeatBtn = document.getElementById('repeatBtn');
 soundBtn.classList.toggle('on', soundOn);
 
 soundBtn.addEventListener('click', () => {
@@ -432,11 +517,6 @@ soundBtn.addEventListener('click', () => {
   soundBtn.classList.toggle('on', soundOn);
   localStorage.setItem('rukey-sound', soundOn ? 'on' : 'off');
   if (soundOn && queue[currentIdx]) speak(queue[currentIdx].w);
-});
-
-repeatBtn.addEventListener('click', () => {
-  repeatOn = !repeatOn;
-  repeatBtn.classList.toggle('on', repeatOn);
 });
 
 // ---------- settings panel ----------
@@ -478,7 +558,9 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 function restart() {
   loadWords();
   deck = [];
+  loopRange = null;
   track.innerHTML = '';
+  track.appendChild(loopBar);
   queue = [];
   currentIdx = 0;
   typedPos = 0;
@@ -486,6 +568,7 @@ function restart() {
   ensureBuffer();
   renderCurrent();
   centerCurrent();
+  updateLoopBar();
 }
 
 window.addEventListener('resize', centerCurrent);

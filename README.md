@@ -13,8 +13,13 @@ A minimal dark-themed webapp for learning to touch type Russian (ЙЦУКЕН la
 - Live WPM / accuracy / word count.
 - **Pronunciation** — every default word ships with pre-generated neural TTS audio
   (Microsoft Edge `ru-RU-DmitryNeural`, see `generate-audio.js`); custom-list words fall back
-  to the browser's Web Speech API. Toggle with 🔊, replay with Tab.
-- **Repeat mode** (🔁) — stay on the current word and drill it until toggled off.
+  to the browser's Web Speech API. Toggle with 🔊, replay with Enter.
+- **Navigation** — Backspace at the start of a word goes back a word, Tab skips forward,
+  or click any word in the line to jump to it.
+- **Loop bar** — drag either end of the yellow bar above the word line to select a set of
+  words; the selection repeats serially, wrapping back to the first word after the last.
+  Double-click the bar to clear it.
+- **Helper toggle** (⌨) — show or hide the keyboard and hands.
 
 ## Regenerating audio
 

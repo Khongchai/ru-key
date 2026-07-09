@@ -142,8 +142,8 @@ function speakFallback(word) {
 // a 4ms noise burst with exponential decay through a jittered bandpass filter
 let tickCtx = null, tickFilter = null, tickGain = null, tickBuffer = null;
 
-function playTick(intensity = 0.7) {
-  if (typeof AudioContext === 'undefined') return;
+function ensureAudioCtx() {
+  if (typeof AudioContext === 'undefined') return false;
   if (!tickCtx) {
     tickCtx = new AudioContext();
     tickFilter = tickCtx.createBiquadFilter();
@@ -156,6 +156,11 @@ function playTick(intensity = 0.7) {
     tickBuffer = tickCtx.createBuffer(1, tickCtx.sampleRate * 0.004, tickCtx.sampleRate);
   }
   if (tickCtx.state === 'suspended') tickCtx.resume();
+  return true;
+}
+
+function playTick(intensity = 0.7) {
+  if (!ensureAudioCtx()) return;
 
   const data = tickBuffer.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 25);
@@ -168,6 +173,33 @@ function playTick(intensity = 0.7) {
   source.buffer = tickBuffer;
   source.connect(tickFilter);
   source.onended = () => source.disconnect();
+  source.start();
+}
+
+// wrong-key sound: same noise-burst idea as the tick, but longer decay through
+// a resonant lowpass — a dull, quiet thud, like pressing a dead key
+function playThud(intensity = 0.6) {
+  if (!ensureAudioCtx()) return;
+
+  const buf = tickCtx.createBuffer(1, tickCtx.sampleRate * 0.07, tickCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  const tau = tickCtx.sampleRate * 0.018;
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / tau);
+
+  const filter = tickCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 240 * (1 + (Math.random() - 0.5) * 0.15);
+  filter.Q.value = 6;
+
+  const gain = tickCtx.createGain();
+  gain.gain.value = 0.9 * intensity; // low frequencies need more gain to feel equally loud
+
+  const source = tickCtx.createBufferSource();
+  source.buffer = buf;
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(tickCtx.destination);
+  source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
   source.start();
 }
 
@@ -421,12 +453,11 @@ document.addEventListener('keydown', (e) => {
   if (document.getElementById('overlay').classList.contains('open')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-  // key press animation + tick sound on the on-screen keyboard
+  // key press animation on the on-screen keyboard
   const keyEl = document.querySelector(`.key[data-code="${e.code}"]`);
   if (keyEl && !e.repeat) {
     keyEl.classList.add('pressed');
     setTimeout(() => keyEl.classList.remove('pressed'), 90);
-    playTick();
   }
 
   if (e.key === 'Escape') { advanceWord(true); return; }
@@ -474,6 +505,7 @@ document.addEventListener('keydown', (e) => {
   keystrokes++;
 
   if (ch === cur.w[typedPos]) {
+    playTick();
     typedPos++;
     errorState = false;
     if (typedPos >= cur.w.length) {
@@ -483,6 +515,7 @@ document.addEventListener('keydown', (e) => {
       return;
     }
   } else {
+    playThud();
     mistakes++;
     errorState = true;
     // retrigger shake animation
